@@ -2,6 +2,13 @@ name: Verify Bulgarian StarDict coverage
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/**'
+      - 'Makefile'
+      - 'vendor/**'
+      - '.github/workflows/verify.yml'
   pull_request:
     paths:
       - 'scripts/**'
