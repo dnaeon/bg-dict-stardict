@@ -1,0 +1,84 @@
+name: Release Bulgarian StarDict
+
+# Manual-only workflow: build the dictionary, package the zip, create a
+# GitHub Release with the zip attached. The release tag is provided by
+# the user when launching the workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        type: string
+      name:
+        description: 'Release title (defaults to the tag)'
+        required: false
+        type: string
+      draft:
+        description: 'Create as draft'
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark as prerelease'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Refuse to run off main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::This workflow may only be run from the 'main' branch." >&2
+          echo "::error::Launched from: ${{ github.ref }}" >&2
+          echo "::error::Use the 'Use workflow from' selector to pick 'main' and try again." >&2
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends make zip xz-utils sdcv
+
+      - name: Install Python dependencies
+        run: pip install --upgrade pyglossary python-idzip
+
+      - name: Build, verify and package
+        run: make all
+
+      - name: Show dictionary metadata
+        run: |
+          {
+            echo "## Release ${{ inputs.tag }}"
+            echo ""
+            echo '```'
+            grep -E '^(wordcount|synwordcount|bookname)=' out/stardict/bulgarian/bulgarian.ifo
+            echo ''
+            ls -lh dist/
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub Release with the zip attached
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.name || inputs.tag }}
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+          generate_release_notes: true
+          files: dist/bulgarian-stardict.zip

@@ -1,0 +1,63 @@
+name: Build Bulgarian StarDict
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install system dependencies
+        # The Makefile and scripts deliberately do NOT install anything; the
+        # CI runner is responsible for providing all prerequisites.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends make zip xz-utils
+
+      - name: Install Python dependencies
+        run: pip install --upgrade pyglossary python-idzip
+
+      - name: Build and package
+        run: make build package
+
+      - name: Verify build outputs exist
+        run: |
+          set -e
+          for f in bulgarian.ifo bulgarian.idx bulgarian.dict.dz bulgarian.syn; do
+            test -s "out/stardict/bulgarian/$f" || { echo "Missing or empty: $f"; exit 1; }
+          done
+          test -s dist/bulgarian-stardict.zip
+          echo "All expected files present."
+
+      - name: Report dictionary statistics
+        run: |
+          {
+            echo "## Build statistics"
+            echo '```'
+            grep -E '^(wordcount|synwordcount|bookname)=' out/stardict/bulgarian/bulgarian.ifo
+            echo ''
+            ls -lh out/stardict/bulgarian/
+            echo ''
+            ls -lh dist/
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: bulgarian-stardict
+          path: dist/bulgarian-stardict.zip
+          retention-days: 30
