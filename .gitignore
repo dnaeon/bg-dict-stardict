@@ -1,0 +1,20 @@
+# Build outputs
+out/
+dist/
+
+# Optional Python virtualenv
+.venv/
+
+# Editor / OS noise
+.DS_Store
+*.swp
+__pycache__/
+*.pyc
+# Emacs backup, autosave and lock files
+*~
+\#*\#
+.\#*
+.dir-locals.el
+
+# Decompressed vendor DB (we commit only the .xz; the .sqlite is regenerated locally)
+vendor/db.sqlite
