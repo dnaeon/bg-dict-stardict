@@ -32,7 +32,15 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends make zip xz-utils sdcv
+          sudo apt-get install -y --no-install-recommends \
+            make zip xz-utils \
+            cmake g++ pkg-config libglib2.0-dev zlib1g-dev gettext
+
+      - name: Build and install sdcv from source
+        # Ubuntu noble ships sdcv 0.5.2 (Aug 2017) which fails to handle
+        # Cyrillic input on this runner. We build the upstream pinned tag
+        # instead. See scripts/install-sdcv.sh for the rationale.
+        run: ./scripts/install-sdcv.sh
 
       - name: Install Python dependencies
         run: pip install --upgrade pyglossary python-idzip

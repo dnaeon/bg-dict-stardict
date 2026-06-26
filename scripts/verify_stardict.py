@@ -105,40 +105,22 @@ def lookup_batch(words: list[str], data_dir: Path) -> list[list[dict]]:
         sys.exit(2)
 
     results: list[list[dict]] = []
-    # Parse the output as a stream of top-level JSON values, NOT line by line.
-    # sdcv emits one JSON array per query, but the precise output framing
-    # depends on the build: some versions print plain "[]\n[...]\n", others
-    # interleave informational messages on stdout (e.g. "save to cache ..."
-    # on first run with a cold cache), and a JSON string with an embedded
-    # literal newline would also split across two lines. The raw_decode
-    # loop sidesteps all of that by consuming exactly one JSON value at a
-    # time and skipping any non-JSON noise between values.
-    decoder = json.JSONDecoder()
-    text = proc.stdout
-    pos = 0
-    n = len(text)
-    while pos < n:
-        # Skip whitespace and any non-JSON noise until we find '[' (the
-        # start of an sdcv result array).
-        while pos < n and text[pos] != "[":
-            pos += 1
-        if pos >= n:
-            break
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
         try:
-            value, end = decoder.raw_decode(text, pos)
+            results.append(json.loads(line))
         except json.JSONDecodeError as e:
-            sys.stderr.write(
-                f"Bad JSON from sdcv at offset {pos}: {e}\n"
-                f"  near={text[pos:pos + 200]!r}\n"
-            )
+            sys.stderr.write(f"Bad JSON from sdcv: {e}\n  line={line[:200]!r}\n")
             sys.exit(2)
-        results.append(value)
-        pos = end
 
     if len(results) != len(words):
         sys.stderr.write(
-            f"sdcv returned {len(results)} JSON lines for {len(words)} queries; "
+            f"sdcv returned {len(results)} JSON arrays for {len(words)} queries; "
             "cannot align results.\n"
+            f"  first 200 bytes of stdout: {proc.stdout[:200]!r}\n"
+            f"  first 200 bytes of stderr: {proc.stderr[:200]!r}\n"
         )
         sys.exit(2)
     return results

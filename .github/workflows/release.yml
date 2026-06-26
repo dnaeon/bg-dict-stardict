@@ -53,7 +53,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends make zip xz-utils sdcv
+          sudo apt-get install -y --no-install-recommends \
+            make zip xz-utils \
+            cmake g++ pkg-config libglib2.0-dev zlib1g-dev gettext
+
+      - name: Build and install sdcv from source
+        run: ./scripts/install-sdcv.sh
 
       - name: Install Python dependencies
         run: pip install --upgrade pyglossary python-idzip
