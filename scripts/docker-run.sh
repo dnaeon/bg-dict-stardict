@@ -21,7 +21,6 @@ set -euo pipefail
 IMAGE_NAME="bg-dict-stardict:local"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-DOCKERFILE="$REPO_ROOT/Dockerfile"
 
 if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker not found in PATH." >&2
