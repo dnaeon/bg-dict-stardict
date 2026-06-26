@@ -99,26 +99,41 @@ def _wiki_sub(m: "re.Match[str]") -> str:
     return f'<a href="{url}"><i>{title}</i> в Уикипедия</a>'
 
 
-def _xref_sub_factory(word_id_map: Mapping[str, int]):
+def _xref_sub_factory(known_words: "Mapping[str, object] | set[str]"):
     def sub(m: "re.Match[str]") -> str:
+        # Strip the combining acute so the lookup key matches the headword
+        # the way it's stored in the source database.
         word_text = m.group(1).replace("&#768;", "")
-        wid = word_id_map.get(word_text)
-        if wid is not None:
-            return f'<a href="#{wid}">{word_text}</a>'
-        # PHP fallback: emit the original captured text (with accents stripped
-        # is NOT what PHP does - it emits matches[1] verbatim, including any
-        # accents). Match that exactly.
-        return m.group(1)
+        if word_text in known_words:
+            # bword:// is the de-facto cross-dictionary link scheme used by
+            # KOReader, GoldenDict, AARD2 and other StarDict readers - when
+            # clicked, the reader performs a fresh lookup on the word.
+            #
+            # We deliberately do NOT URL-encode the word: KOReader treats
+            # the bword:// target as a literal lookup string rather than
+            # a percent-encoded URL, so URL-encoded UTF-8 ends up being
+            # looked up as the literal "%D0..." string. Bulgarian headwords
+            # never contain HTML-special characters (<, >, &, "), so the
+            # raw form is safe inside the href attribute value.
+            return f'<a href="bword://{word_text}">{word_text}</a>'
+        # The reference points at a word that isn't in our dictionary; emit
+        # plain text so the reader doesn't render a broken link.
+        return word_text
     return sub
 
 
 # --- Main entry point -------------------------------------------------------
 
-def format_meaning(raw: str, word_id_map: Mapping[str, int] | None = None) -> str:
+def format_meaning(
+    raw: str,
+    known_words: "Mapping[str, object] | set[str] | None" = None,
+) -> str:
     """Render Речко raw meaning markup as HTML.
 
-    If `word_id_map` is None, cross-references that resolve to a known word
-    fall through to plain text (same as PHP when the word is unknown).
+    `known_words` is consulted only to decide whether a [[xref]] target
+    exists in the dictionary. Pass anything supporting `in` on strings:
+    a set, a frozenset, or the {name -> id} dict the builder happens to
+    have lying around. If None, all xref targets render as plain text.
     """
     if raw is None:
         return ""
@@ -146,8 +161,8 @@ def format_meaning(raw: str, word_id_map: Mapping[str, int] | None = None) -> st
 
     # 7. Cross-references: "[[word]]". Done LAST so wiki links (which also
     #    match this pattern) don't get clobbered.
-    if word_id_map is not None:
-        s = _XREF_RE.sub(_xref_sub_factory(word_id_map), s)
+    if known_words is not None:
+        s = _XREF_RE.sub(_xref_sub_factory(known_words), s)
     else:
         # Strip the [[ ]] but keep the text inside (matches PHP behavior when
         # the word isn't in the map).

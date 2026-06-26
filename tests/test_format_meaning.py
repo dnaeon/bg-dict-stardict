@@ -78,27 +78,37 @@ class FormatMeaningTests(unittest.TestCase):
         self.assertEqual(format_meaning(raw), expected)
 
     def test_xref_existing_word(self):
+        # [[word]] becomes a bword:// link when the word exists in the
+        # known-words set. The Cyrillic word is embedded literally - KOReader
+        # treats the bword:// target as a lookup string, not a URL, so we
+        # must NOT percent-encode it.
         raw = "Виж [[абсолют]]."
-        expected = 'Виж <a href="#29556">абсолют</a>.'
-        self.assertEqual(format_meaning(raw, {"абсолют": 29556}), expected)
+        expected = 'Виж <a href="bword://абсолют">абсолют</a>.'
+        self.assertEqual(format_meaning(raw, {"абсолют"}), expected)
 
     def test_xref_missing_word(self):
-        # PHP falls back to the matched text verbatim when the word isn't in
-        # the map.
+        # When the xref target isn't in the dictionary, emit plain text -
+        # no link, no broken anchor.
         raw = "Виж [[несъществуваща]]."
         expected = "Виж несъществуваща."
-        self.assertEqual(format_meaning(raw, {}), expected)
+        self.assertEqual(format_meaning(raw, set()), expected)
 
     def test_xref_with_accent_stripped_for_lookup(self):
         # In the raw DB markup, accents are written as backticks (`). They
         # get converted to &#768; by the strtr pass. The cross-reference
         # resolver runs AFTER that and strips &#768; both for the lookup
-        # key AND for the rendered link text (matching upstream PHP, which
-        # does $wordText = str_replace('&#768;', '', ...) and then uses
-        # $wordText for both purposes).
+        # key AND for the rendered link text.
         raw = "Виж [[а`з]]."
-        expected = 'Виж <a href="#42">аз</a>.'
-        self.assertEqual(format_meaning(raw, {"аз": 42}), expected)
+        expected = 'Виж <a href="bword://аз">аз</a>.'
+        self.assertEqual(format_meaning(raw, {"аз"}), expected)
+
+    def test_xref_multiword_with_space(self):
+        # Bulgarian reflexive verbs include a space (e.g. "боричкам се").
+        # Spaces inside an HTML attribute value are valid as-is when the
+        # value is quoted; we must not URL-encode them.
+        raw = "Виж [[боричкам се]]."
+        expected = 'Виж <a href="bword://боричкам се">боричкам се</a>.'
+        self.assertEqual(format_meaning(raw, {"боричкам се"}), expected)
 
     def test_wiki_link(self):
         raw = "Виж [[w:Платон]] за повече."

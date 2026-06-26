@@ -57,16 +57,11 @@ def collect_entries(conn: sqlite3.Connection):
     """
     cur = conn.cursor()
 
-    # Build name->id map (lowest id wins) so cross-references can resolve.
-    cur.execute(
-        "SELECT id, name FROM word "
-        "WHERE meaning IS NOT NULL "
-        "ORDER BY name ASC, id ASC"
-    )
-    name_to_id: dict[str, int] = {}
-    for wid, name in cur.fetchall():
-        if name and name not in name_to_id:
-            name_to_id[name] = wid
+    # Build the set of known headwords so format_meaning can decide whether
+    # to turn [[xref]] markup into a clickable bword:// link or to fall back
+    # to plain text.
+    cur.execute("SELECT name FROM word WHERE meaning IS NOT NULL")
+    known_words: set[str] = {name for (name,) in cur.fetchall() if name}
 
     # Iterate dictionary entries (the "first by name asc, id asc" wins again).
     entries_cur = conn.cursor()
@@ -109,7 +104,7 @@ def collect_entries(conn: sqlite3.Connection):
             continue
         seen_names.add(name)
 
-        rendered = format_meaning(raw_meaning, name_to_id) if raw_meaning else ""
+        rendered = format_meaning(raw_meaning, known_words) if raw_meaning else ""
         # Empty meaning becomes a placeholder dash so the entry is still
         # discoverable - two such words exist in the source data (see
         # vendor/README.md for details).
