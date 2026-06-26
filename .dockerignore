@@ -20,3 +20,7 @@ vendor/db.sqlite
 *.swp
 __pycache__/
 *.pyc
+# Emacs backup, autosave and lock files
+*~
+\#*\#
+.\#*
