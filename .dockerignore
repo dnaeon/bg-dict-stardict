@@ -1,0 +1,22 @@
+# Exclude things from the Docker build context that don't belong in the
+# image. The image consumes the repo at run time via a volume mount, so
+# the build context only needs the Dockerfile itself - we keep it minimal
+# here mostly to make `docker build` fast on a fresh checkout.
+
+# Build outputs - regenerated inside the container.
+out/
+dist/
+
+# Local Python virtualenv if anyone made one for native builds.
+.venv/
+
+# Generated / decompressed vendor data.
+vendor/db.sqlite
+
+# Editor and OS noise.
+.git/
+.gitignore
+.DS_Store
+*.swp
+__pycache__/
+*.pyc
